@@ -477,6 +477,7 @@ function restorePackagedRuntimeStateFromBackup() {
     backupRoot: null,
     restored: [],
     failed: [],
+    skipped: [],
   };
 
   if (!isWindowsNsisInstalledApp()) {
@@ -488,9 +489,26 @@ function restorePackagedRuntimeStateFromBackup() {
     return result;
   }
 
-  const appDir = resolveAppDir();
   const backupRoot = resolveUpdateBackupRoot();
   result.backupRoot = backupRoot;
+  const backupAppVersion = normalizeVersionString(manifest.appVersion);
+  const currentAppVersion = normalizeVersionString(resolveDesktopVersion());
+  const versionComparison = backupAppVersion && currentAppVersion
+    ? compareVersions(backupAppVersion, currentAppVersion)
+    : null;
+  const isSameAppVersion = Boolean(
+    backupAppVersion &&
+    currentAppVersion &&
+    (versionComparison === 0 || (versionComparison === null && backupAppVersion === currentAppVersion))
+  );
+  if (isSameAppVersion) {
+    const reason = `manifest (app version ${currentAppVersion} did not change after update attempt)`;
+    result.skipped.push(reason);
+    logLine(`[update] skipped runtime restore because app version did not change after update attempt: ${currentAppVersion}`);
+    return result;
+  }
+
+  const appDir = resolveAppDir();
   const runtimeEntries = resolveRuntimeFileEntries(appDir);
   const relativeFiles = normalizeBackupFileList(manifest);
   const failedRelativeFiles = [];
@@ -534,6 +552,9 @@ function restorePackagedRuntimeStateFromBackup() {
   }
   if (result.failed.length) {
     logLine(`[update] skipped runtime restore files after copy failure: ${result.failed.join(', ')}`);
+  }
+  if (result.skipped.length) {
+    logLine(`[update] skipped runtime restore: ${result.skipped.join(', ')}`);
   }
 
   return result;
@@ -1375,14 +1396,17 @@ ipcMain.handle('desktop:open-release-page', async (_event, releaseUrl) => {
 async function createWindow() {
   const restoreResult = isWindowsNsisInstalledApp() ? restorePackagedRuntimeStateFromBackup() : null;
   initLogging();
-  const restoreFailed = Boolean(restoreResult && restoreResult.failed.length);
-  const restoreErrorMessage = restoreFailed
-    ? `上次更新安装后恢复运行时文件失败，已保留备份目录 ${restoreResult.backupRoot}，请确认后手动恢复并重启应用。失败明细：${restoreResult.failed.join('；')}`
+  const restoreNeedsAttention = Boolean(restoreResult && (restoreResult.failed.length || restoreResult.skipped.length));
+  const restoreIssueDetails = restoreResult
+    ? restoreResult.failed.concat(restoreResult.skipped).join('；')
+    : '';
+  const restoreErrorMessage = restoreNeedsAttention
+    ? `上次更新安装未完成或恢复运行时文件失败，已保留备份目录 ${restoreResult.backupRoot}，请确认后手动恢复并重启应用。明细：${restoreIssueDetails}`
     : '';
   setDesktopUpdateState({
-    status: restoreFailed ? UPDATE_STATUS.ERROR : UPDATE_STATUS.IDLE,
+    status: restoreNeedsAttention ? UPDATE_STATUS.ERROR : UPDATE_STATUS.IDLE,
     currentVersion: resolveDesktopVersion(),
-    updateMode: restoreFailed ? UPDATE_MODE.MANUAL : UPDATE_MODE.AUTO,
+    updateMode: restoreNeedsAttention ? UPDATE_MODE.MANUAL : UPDATE_MODE.AUTO,
     message: restoreErrorMessage,
   });
   const startupStartedAt = Date.now();

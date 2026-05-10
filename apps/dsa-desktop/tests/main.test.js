@@ -437,6 +437,53 @@ test('restorePackagedRuntimeStateFromBackup removes restored files from pending 
   assert.deepEqual(JSON.parse(fs.readFileSync(manifestPath, 'utf-8')).files, [dbRelativePath]);
 });
 
+test('restorePackagedRuntimeStateFromBackup skips backup when app version did not change', (t) => {
+  const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'dsa-desktop-same-version-restore-'));
+  const appDir = path.join(tempRoot, 'app');
+  const userDataDir = path.join(tempRoot, 'userData');
+  const backupRoot = path.join(userDataDir, '.dsa-desktop-update-backup');
+  const backupEnvPath = path.join(backupRoot, '.env');
+  const targetEnvPath = path.join(appDir, '.env');
+  const manifestPath = path.join(backupRoot, 'runtime-state.json');
+
+  fs.mkdirSync(backupRoot, { recursive: true });
+  fs.mkdirSync(appDir, { recursive: true });
+  fs.writeFileSync(path.join(appDir, 'Uninstall Daily Stock Analysis.exe'), '');
+  fs.writeFileSync(backupEnvPath, 'pre-update-env\n', 'utf-8');
+  fs.writeFileSync(targetEnvPath, 'user-change-after-aborted-install\n', 'utf-8');
+  fs.writeFileSync(
+    manifestPath,
+    JSON.stringify({ appVersion: 'v3.12.0', files: ['.env'] }),
+    'utf-8'
+  );
+
+  const mainModule = loadMainModule(t, {
+    platform: 'win32',
+    app: {
+      isPackaged: true,
+      getPath: (name) => {
+        if (name === 'exe') {
+          return path.join(appDir, 'Daily Stock Analysis.exe');
+        }
+        return userDataDir;
+      },
+    },
+  });
+
+  t.after(() => {
+    fs.rmSync(tempRoot, { recursive: true, force: true });
+  });
+
+  const restoreResult = mainModule.restorePackagedRuntimeStateFromBackup();
+  assert.deepEqual(restoreResult.restored, []);
+  assert.deepEqual(restoreResult.failed, []);
+  assert.equal(restoreResult.skipped.length, 1);
+  assert.match(restoreResult.skipped[0], /version 3\.12\.0 did not change/);
+  assert.equal(fs.readFileSync(targetEnvPath, 'utf-8'), 'user-change-after-aborted-install\n');
+  assert.equal(fs.existsSync(backupRoot), true);
+  assert.deepEqual(JSON.parse(fs.readFileSync(manifestPath, 'utf-8')).files, ['.env']);
+});
+
 test('stopBackend waits for backend process exit', async (t) => {
   const mainModule = loadMainModule(t);
   const killSignals = [];
