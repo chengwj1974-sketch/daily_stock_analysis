@@ -948,7 +948,7 @@ function configureElectronAutoUpdater() {
   }
 
   updater.autoDownload = true;
-  updater.autoInstallOnAppQuit = true;
+  updater.autoInstallOnAppQuit = false;
 
   updater.on('checking-for-update', () => {
     setDesktopUpdateState({
