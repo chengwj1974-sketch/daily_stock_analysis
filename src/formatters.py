@@ -649,21 +649,6 @@ def format_feishu_markdown(content: str) -> str:
             width += 2 if unicodedata.east_asian_width(ch) in ("F", "W") else 1
         return width
 
-    def _truncate_to_width(value: str, max_width: int = 18) -> str:
-        if _display_width(value) <= max_width:
-            return value
-        suffix = "..."
-        target = max(1, max_width - len(suffix))
-        chars = []
-        width = 0
-        for ch in value:
-            ch_width = 2 if unicodedata.east_asian_width(ch) in ("F", "W") else 1
-            if width + ch_width > target:
-                break
-            chars.append(ch)
-            width += ch_width
-        return "".join(chars).rstrip() + suffix
-
     def _pad_cell(value: str, width: int) -> str:
         return value + " " * max(0, width - _display_width(value))
 
@@ -690,7 +675,7 @@ def format_feishu_markdown(content: str) -> str:
 
         max_cols = max(len(row) for row in rows)
         normalized_rows = [
-            [_truncate_to_width(cell) for cell in (row + [""] * (max_cols - len(row)))]
+            row + [""] * (max_cols - len(row))
             for row in rows
         ]
         col_widths = [

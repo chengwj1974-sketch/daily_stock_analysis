@@ -234,6 +234,18 @@ class TestFeishuMarkdownFormatter(unittest.TestCase):
         self.assertIn("上涨/下跌", result)
         self.assertNotIn("• 指标：", result)
 
+    def test_markdown_table_fallback_preserves_long_cell_text(self):
+        long_rationale = "放量突破年线后回踩确认，继续观察成交量和行业催化是否延续"
+        content = f"""| 股票 | 理由 |
+| --- | --- |
+| 半导体先进封装龙头股份有限公司 | {long_rationale} |
+"""
+        result = format_feishu_markdown(content)
+
+        self.assertIn("半导体先进封装龙头股份有限公司", result)
+        self.assertIn(long_rationale, result)
+        self.assertNotIn("...", result)
+
     def test_star_list_items_are_normalized(self):
         result = format_feishu_markdown("*   失效条件：缩量")
 
