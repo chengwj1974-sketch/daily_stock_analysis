@@ -154,6 +154,8 @@ def test_tencent_realtime_success_logs_endpoint(caplog, monkeypatch, akshare_fet
 
 
 def test_hot_stocks_uses_eastmoney_hot_ranking_when_available(monkeypatch, akshare_fetcher):
+    fake_akshare = SimpleNamespace()
+    monkeypatch.setitem(sys.modules, "akshare", fake_akshare)
     monkeypatch.setattr(
         akshare_fetcher,
         "_get_eastmoney_hot_stocks",
@@ -232,3 +234,4 @@ def test_limit_up_pool_zero_pads_first_seal_times_before_sorting(monkeypatch, ak
 
     assert [row["code"] for row in result] == ["000001", "000003", "000002"]
     assert result[0]["first_limit_time"] == "092500"
+    assert result[0]["last_limit_time"] == "093000"

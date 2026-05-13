@@ -1847,19 +1847,19 @@ class AkshareFetcher(BaseFetcher):
         import akshare as ak
 
         fetch_attempts = (
-            lambda top_n: self._get_eastmoney_hot_stocks(ak, top_n),
-            lambda top_n: self._get_eastmoney_hot_up_stocks(ak, top_n),
-            lambda top_n: self._get_xueqiu_hot_stocks(ak, top_n),
+            ("东方财富人气榜", lambda top_n: self._get_eastmoney_hot_stocks(ak, top_n)),
+            ("东方财富飙升榜", lambda top_n: self._get_eastmoney_hot_up_stocks(ak, top_n)),
+            ("雪球关注榜", lambda top_n: self._get_xueqiu_hot_stocks(ak, top_n)),
         )
         last_error = ""
-        for fetch in fetch_attempts:
+        for source, fetch in fetch_attempts:
             try:
                 rows = fetch(n)
                 if rows:
                     return rows[:n]
             except Exception as e:
-                last_error = str(e)
-                logger.debug("[Akshare] 人气股候选源失败: %s", e)
+                last_error = f"{source}: {e}"
+                logger.debug("[Akshare] 人气股候选源失败 source=%s: %s", source, e)
         if last_error:
             logger.warning("[Akshare] 获取人气股全部候选源失败: %s", last_error)
         return None
@@ -1979,7 +1979,7 @@ class AkshareFetcher(BaseFetcher):
                     'turnover_rate': self._safe_float(row.get('换手率')),
                     'seal_amount': self._safe_float(row.get('封板资金')),
                     'first_limit_time': str(row.get('首次封板时间', '')).strip(),
-                    'last_limit_time': str(row.get('最后封板时间', '')).strip(),
+                    'last_limit_time': self._normalize_limit_time_value(row.get('最后封板时间')),
                     'break_count': self._safe_int(row.get('炸板次数')),
                     'limit_stat': str(row.get('涨停统计', '')).strip(),
                     'consecutive_boards': self._safe_int(row.get('连板数')),
