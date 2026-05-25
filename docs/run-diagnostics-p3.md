@@ -46,6 +46,22 @@ GET /api/v1/history/{record_id}/diagnostics
 - Web 只消费 Phase 1/2 已追加的可选字段和只读诊断接口。
 - 复制文本由后端生成并脱敏；前端只负责展示和复制。
 - Desktop 复用 Web 构建产物，未单独改动 Electron 主进程或打包脚本。
+- 运行时配置/模型/provider/base_url 兼容语义不调整：仅补充诊断持久化与展示，不改 provider 优先级、LiteLLM 路由、运行时清理与配置回退逻辑。
+- 旧历史与旧配置兼容规则不变：历史诊断查询新增可选字段不影响既有历史查询响应解析；回退方式为移除本轮展示与相关前端查询路径，或按现有指南恢复模型和配置。
+
+## 兼容性回归与验证
+
+- 后端回归覆盖：
+  - `tests/test_pipeline_market_phase_context.py`
+  - `tests/test_realtime_types.py`
+  - `tests/test_scheduler_background.py`
+  - `tests/test_analysis_api_contract.py`（子集：诊断上下文入出参/状态查询契约）
+  - `tests/test_analysis_history.py`（子集：历史 API 与持久化链路）
+- 回归命令：
+
+```bash
+python -m pytest tests/test_realtime_types.py tests/test_scheduler_background.py tests/test_pipeline_market_phase_context.py tests/test_analysis_api_contract.py tests/test_analysis_history.py
+```
 
 ## 验证建议
 
@@ -60,6 +76,12 @@ npm run build
 ```bash
 cd apps/dsa-web
 npm test -- --run src/components/report/__tests__/ReportDiagnostics.test.tsx src/components/tasks/__tests__/TaskPanel.test.tsx src/hooks/__tests__/useTaskStream.test.tsx
+```
+
+可选完整后端门禁（当前反馈明确要求）：
+
+```bash
+./scripts/ci_gate.sh
 ```
 
 ## 回滚
