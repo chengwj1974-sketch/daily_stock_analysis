@@ -22,6 +22,15 @@ For English contributors: please fill in English. All fields marked (EN) accept 
 请列出本 PR 修改的模块和文件范围。  
 *(EN) List the modules and files changed in this PR.*
 
+## Acceptance Criteria
+
+### PR 元信息与验收边界
+
+- [ ] **仅说明边界，不新增 runtime 行为**：本 PR 为文档/治理说明，不承担 `SCHEDULE_TIME` 或其他运行时能力交付。
+- [ ] **docs-only 自检清单**：边界说明与实际行为一致、双语文档同步、`docs/CHANGELOG.md` 同步（如涉及用户可见文档）；
+- [ ] **Issue 链接语义正确**：仅 docs/治理范围请使用 `Refs #<issue_number>`（或无 issue 说明），并将 PR 类型限定为 `docs`，避免误关闭 Issue。
+
+
 ## Issue Link
 
 必须填写以下之一 / Fill in one of:
@@ -29,8 +38,8 @@ For English contributors: please fill in English. All fields marked (EN) accept 
 - `Refs #<issue_number>`
 - 无 Issue 时说明原因与验收标准 / If no issue, explain the motivation and acceptance criteria
 
-> 文档/治理类、仅做边界澄清且不含运行时交付的 PR，请选择 `Refs #<issue_number>`（或不填）并在 PR 类型中勾选 `docs`，避免误触发 Issue 自动关闭；不要使用 `Closes`（等同于 `Fixes`）。
-> For docs/governance-only changes that only clarify boundaries and do not include runtime delivery, use `Refs #<issue_number>` (or leave it blank) and select PR type `docs`; do not use `Closes` (equivalent to `Fixes`) to avoid auto-closing issues.
+> 文档/治理类、仅做边界澄清且不含运行时交付的 PR，请选择 `Refs #<issue_number>`（或不填）并在 PR 类型中勾选 `docs`，避免误触发 Issue 自动关闭；不要使用 `Fixes`/`Closes`（二者都会触发 Issue 自动关闭）用于此类 PR。
+> For docs/governance-only changes that only clarify boundaries and do not include runtime delivery, use `Refs #<issue_number>` (or leave it blank) and select PR type `docs`; do not use `Fixes` or `Closes` (both auto-close issues) for this PR type.
 
 ## Verification Commands And Results
 
