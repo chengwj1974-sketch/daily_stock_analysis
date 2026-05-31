@@ -17,6 +17,8 @@ from src.formatters import chunk_markdown_preserving_blocks, format_telegram_mar
 
 logger = logging.getLogger(__name__)
 
+TELEGRAM_MESSAGE_MAX_UTF16 = 4096
+
 
 class TelegramSender:
     
@@ -82,10 +84,8 @@ class TelegramSender:
             api_url = f"https://api.telegram.org/bot{bot_token}/sendMessage"
             
             telegram_content = self._convert_to_telegram_markdown(content)
+            max_length = TELEGRAM_MESSAGE_MAX_UTF16
 
-            # Telegram 消息最大长度 4096 UTF-16 code units
-            max_length = 4096
-            
             if utf16_len(telegram_content) <= max_length:
                 # 单条消息发送
                 return self._send_telegram_message(
@@ -222,35 +222,57 @@ class TelegramSender:
     ) -> bool:
         """Retry Telegram send without parse_mode when Markdown parsing fails."""
         logger.info("Telegram Markdown 解析失败，尝试使用纯文本格式重新发送...")
-        plain_payload = dict(payload)
-        plain_payload.pop('parse_mode', None)
-        plain_payload['text'] = text
 
         try:
-            response = requests.post(api_url, json=plain_payload, timeout=timeout_seconds or 10)
-        except (requests.exceptions.ConnectionError, requests.exceptions.Timeout) as e:
-            logger.error(f"Telegram plain-text fallback failed: {e}")
+            chunks = (
+                chunk_markdown_preserving_blocks(
+                    text,
+                    TELEGRAM_MESSAGE_MAX_UTF16,
+                    len_fn=utf16_len,
+                    add_page_marker=True,
+                )
+                if utf16_len(text) > TELEGRAM_MESSAGE_MAX_UTF16
+                else [text]
+            )
+        except ValueError as e:
+            logger.error("Telegram 纯文本回退分片失败: %s", e)
             return False
 
-        if response.status_code == 200:
+        for chunk_index, chunk in enumerate(chunks, start=1):
+            if len(chunks) > 1:
+                logger.info(f"发送 Telegram 纯文本回退消息块 {chunk_index}/{len(chunks)}...")
+
+            plain_payload = dict(payload)
+            plain_payload.pop('parse_mode', None)
+            plain_payload['text'] = chunk
+
             try:
-                result = response.json()
-            except ValueError:
-                logger.error("Telegram 纯文本回退失败: 响应不是有效 JSON")
+                response = requests.post(api_url, json=plain_payload, timeout=timeout_seconds or 10)
+            except (requests.exceptions.ConnectionError, requests.exceptions.Timeout) as e:
+                logger.error(f"Telegram plain-text fallback failed: {e}")
+                return False
+
+            if response.status_code == 200:
+                try:
+                    result = response.json()
+                except ValueError:
+                    logger.error("Telegram 纯文本回退失败: 响应不是有效 JSON")
+                    logger.error(f"响应内容: {response.text}")
+                    return False
+
+                if result.get('ok'):
+                    continue
+
+                logger.error("Telegram 纯文本回退失败: Telegram API 返回 ok=false")
                 logger.error(f"响应内容: {response.text}")
                 return False
 
-            if result.get('ok'):
-                logger.info("Telegram 消息发送成功（纯文本）")
-                return True
-
-            logger.error("Telegram 纯文本回退失败: Telegram API 返回 ok=false")
+            logger.error(f"Telegram 纯文本回退失败: HTTP {response.status_code}")
             logger.error(f"响应内容: {response.text}")
             return False
 
-        logger.error(f"Telegram 纯文本回退失败: HTTP {response.status_code}")
-        logger.error(f"响应内容: {response.text}")
-        return False
+        logger.info("Telegram 消息发送成功（纯文本）")
+        return True
     
     def _send_telegram_chunked(
         self,

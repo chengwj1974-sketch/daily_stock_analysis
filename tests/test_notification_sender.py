@@ -1058,6 +1058,41 @@ class TestTelegramSender(unittest.TestCase):
         self.assertEqual(second_payload["text"], content)
 
     @mock.patch("src.notification_sender.telegram_sender.requests.post")
+    def test_send_plain_text_fallback_chunks_original_when_formatted_report_fits(self, mock_post):
+        markdown_error = _response(400)
+        markdown_error.text = (
+            '{"ok":false,"error_code":400,"description":"Bad Request: can\'t parse entities"}'
+        )
+        mock_post.side_effect = [
+            markdown_error,
+            _response(200, {"ok": True}),
+            _response(200, {"ok": True}),
+            _response(200, {"ok": True}),
+        ]
+
+        column_count = 360
+        header = "| " + " | ".join(["H"] * column_count) + " |"
+        separator = "| " + " | ".join(["---"] * column_count) + " |"
+        row = "| " + " | ".join(["x"] * column_count) + " |"
+        content = f"{header}\n{separator}\n{row}\n*unmatched"
+        self.assertGreater(len(content.encode("utf-16-le")) // 2, 4096)
+
+        cfg = _config(telegram_bot_token="BOT", telegram_chat_id="CHAT")
+        sender = TelegramSender(cfg)
+        result = sender.send_to_telegram(content)
+
+        self.assertTrue(result)
+        self.assertGreater(mock_post.call_count, 2)
+        first_payload = mock_post.call_args_list[0][1]["json"]
+        self.assertEqual(first_payload["parse_mode"], "Markdown")
+        self.assertLessEqual(len(first_payload["text"].encode("utf-16-le")) // 2, 4096)
+
+        for call in mock_post.call_args_list[1:]:
+            fallback_payload = call[1]["json"]
+            self.assertNotIn("parse_mode", fallback_payload)
+            self.assertLessEqual(len(fallback_payload["text"].encode("utf-16-le")) // 2, 4096)
+
+    @mock.patch("src.notification_sender.telegram_sender.requests.post")
     def test_send_plain_text_fallback_handles_non_json_200(self, mock_post):
         markdown_error = _response(400)
         markdown_error.text = (
