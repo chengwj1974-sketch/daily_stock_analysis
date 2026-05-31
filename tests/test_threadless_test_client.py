@@ -47,3 +47,30 @@ def test_threadless_test_client_lifespan_runs_once_per_context() -> None:
     assert lifecycle_calls["startup"] == 1
     assert lifecycle_calls["shutdown"] == 1
     assert lifecycle_calls["requests"] == 2
+
+
+def test_threadless_test_client_does_not_run_lifespan_without_context() -> None:
+    app = FastAPI()
+    lifecycle_calls = {"startup": 0, "shutdown": 0, "requests": 0}
+
+    @app.on_event("startup")
+    async def _on_startup() -> None:
+        lifecycle_calls["startup"] += 1
+
+    @app.on_event("shutdown")
+    async def _on_shutdown() -> None:
+        lifecycle_calls["shutdown"] += 1
+
+    @app.get("/ping")
+    def ping() -> dict[str, str]:
+        lifecycle_calls["requests"] += 1
+        return {"ok": "pong"}
+
+    client = FastAPITestClient(app)
+
+    assert client.get("/ping").json() == {"ok": "pong"}
+    assert client.get("/ping").json() == {"ok": "pong"}
+
+    assert lifecycle_calls["startup"] == 0
+    assert lifecycle_calls["shutdown"] == 0
+    assert lifecycle_calls["requests"] == 2

@@ -188,19 +188,6 @@ class _ThreadlessTestClient:
                     self.cookies = httpx.Cookies(client.cookies)
                     return response
 
-            lifespan_context = self._get_lifespan_context()
-            if callable(lifespan_context):
-                async with lifespan_context(self.app):
-                    async with httpx.AsyncClient(
-                        transport=transport,
-                        base_url=self.base_url,
-                        follow_redirects=follow_redirects,
-                        cookies=self.cookies,
-                    ) as client:
-                        response = await client.request(method, url, **kwargs)
-                        self.cookies = httpx.Cookies(client.cookies)
-                        return response
-
             async with httpx.AsyncClient(
                 transport=transport,
                 base_url=self.base_url,
