@@ -64,6 +64,13 @@ AlphaSift 侧已在 `ZhuLinsen/alphasift@2c76b2b6074ae3bae01d52e5e830a4af3e3246b
 - `/api/v1/alphasift/strategies`：读取 AlphaSift 策略列表。
 - `/api/v1/alphasift/screen`：调用适配层 `screen(..., use_llm=True)`，返回候选、运行元信息和 LLM 展示字段。
 
+## 配置兼容边界（LLM / LiteLLM / Base URL）
+
+- 本次集成仅复用 DSA 已有配置语义，不新增 LLM 模型名、provider、路由、`OPENAI_BASE_URL`、`LITELLM_MODEL`、`AGENT_LITELLM_MODEL`、`OPENAI_MODEL` 或 `LLM_TIMEOUT_SEC` 的兼容改写/迁移规则。
+- 任何配置清理、回退与告警仍沿用当前后端配置解析链路（包括运行时保存前验证、兼容别名解析和非法值 fallback）；AlphaSift 功能本身不引入额外清理/迁移副作用。
+- 如果用户已在 `.env`/设置页配置过历史值，AlphaSift 开启前后应保持可用行为一致；需要恢复旧行为时，按既有方式回退到原配置（例如恢复旧的模型名/BASE URL，或关闭相关模型通道）即可。
+- 失败可见性：`status`/`install`/`screen` 接口返回明确错误码与 `message`，前端在设置页或选股页会将 `403/424/400/422` 等错误直接提示给用户，便于定位并回退到“关闭 AlphaSift + 保持原有 LLM 运行链路”。
+
 错误策略：
 
 - 未开启返回 `403 alphasift_disabled`。
@@ -91,9 +98,9 @@ AlphaSift 侧已在 `ZhuLinsen/alphasift@2c76b2b6074ae3bae01d52e5e830a4af3e3246b
 
 - `python -m pytest tests/test_alphasift_api.py -q`
 - `python -m py_compile api/v1/endpoints/alphasift.py tests/test_alphasift_api.py src/config.py src/core/config_registry.py`
-- `cd apps/dsa-web && npm.cmd test -- alphasift.test.ts StockScreeningPage.test.tsx SettingsPage.test.tsx --run`
-- `cd apps/dsa-web && npm.cmd run lint`
-- `cd apps/dsa-web && npm.cmd run build`
+- `cd apps/dsa-web && npm run test -- alphasift.test.ts StockScreeningPage.test.tsx SettingsPage.test.tsx --run`
+- `cd apps/dsa-web && npm run lint`
+- `cd apps/dsa-web && npm run build`
 
 本地联调已验证：`/api/v1/alphasift/status` 可读取适配层，`/api/v1/alphasift/screen` 在 `use_llm=True` 下返回 LLM 重排结果，选股页可运行并展开查看候选详情。
 
