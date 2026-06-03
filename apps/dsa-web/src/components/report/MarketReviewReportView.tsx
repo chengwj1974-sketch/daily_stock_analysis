@@ -27,6 +27,35 @@ type LoadError = {
   message: string;
 };
 
+const MARKET_REVIEW_TEXT: Record<ReportLanguage, {
+  reviewSummary: string;
+  noReviewSummary: string;
+  noSentimentScore: string;
+  rotationAndFunds: string;
+  noRotationView: string;
+  riskAndWatch: string;
+  noRiskWatch: string;
+}> = {
+  zh: {
+    reviewSummary: '复盘摘要',
+    noReviewSummary: '暂无摘要',
+    noSentimentScore: '暂无评分',
+    rotationAndFunds: '轮动与资金',
+    noRotationView: '暂无轮动观点',
+    riskAndWatch: '风险与观察',
+    noRiskWatch: '暂无观察重点',
+  },
+  en: {
+    reviewSummary: 'Review Summary',
+    noReviewSummary: 'No review summary yet',
+    noSentimentScore: 'No score yet',
+    rotationAndFunds: 'Rotation & Funds',
+    noRotationView: 'No rotation view yet',
+    riskAndWatch: 'Risks & Watchlist',
+    noRiskWatch: 'No key observations yet',
+  },
+};
+
 export const MarketReviewReportView: React.FC<MarketReviewReportViewProps> = ({
   report,
   recordId,
@@ -34,7 +63,9 @@ export const MarketReviewReportView: React.FC<MarketReviewReportViewProps> = ({
   reportLanguage = 'zh',
   className = '',
 }) => {
-  const text = getReportText(normalizeReportLanguage(reportLanguage));
+  const normalizedReportLanguage = normalizeReportLanguage(reportLanguage);
+  const text = getReportText(normalizedReportLanguage);
+  const marketReviewText = MARKET_REVIEW_TEXT[normalizedReportLanguage];
   const [loadedMarkdown, setLoadedMarkdown] = useState<LoadedMarkdown | null>(null);
   const [loadError, setLoadError] = useState<LoadError | null>(null);
   const [copiedType, setCopiedType] = useState<CopyType | null>(null);
@@ -90,27 +121,27 @@ export const MarketReviewReportView: React.FC<MarketReviewReportViewProps> = ({
   const insightCards = useMemo(() => [
     {
       icon: FileText,
-      label: '复盘摘要',
-      value: summary?.analysisSummary || '暂无摘要',
+      label: marketReviewText.reviewSummary,
+      value: summary?.analysisSummary || marketReviewText.noReviewSummary,
     },
     {
       icon: Gauge,
-      label: '市场情绪',
+      label: text.marketSentiment,
       value: summary?.sentimentScore !== undefined
         ? `${summary.sentimentScore} / 100`
-        : '暂无评分',
+        : marketReviewText.noSentimentScore,
     },
     {
       icon: Layers,
-      label: '轮动与资金',
-      value: summary?.operationAdvice || '暂无轮动观点',
+      label: marketReviewText.rotationAndFunds,
+      value: summary?.operationAdvice || marketReviewText.noRotationView,
     },
     {
       icon: ShieldAlert,
-      label: '风险与观察',
-      value: summary?.trendPrediction || '暂无观察重点',
+      label: marketReviewText.riskAndWatch,
+      value: summary?.trendPrediction || marketReviewText.noRiskWatch,
     },
-  ], [summary]);
+  ], [marketReviewText, summary, text.marketSentiment]);
 
   return (
     <div className={`animate-fade-in space-y-4 pb-8 ${className}`}>
