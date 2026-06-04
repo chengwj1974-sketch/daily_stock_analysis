@@ -510,7 +510,7 @@ _FIELD_DEFINITIONS: Dict[str, Dict[str, Any]] = {
     },
     "ALPHASIFT_ENABLED": {
         "title": "AlphaSift Screening",
-        "description": "Enable the built-in AlphaSift stock screening tab. Disabled by default. This flag only affects the AlphaSift screening path and does not migrate `.env` model/provider values.",
+        "description": "Enable the built-in AlphaSift stock screening tab. Disabled by default. This switch only affects the AlphaSift screening path; it does not migrate, sanitize, or clear existing LLM/runtime fields in `.env`.",
         "category": "data_source",
         "data_type": "boolean",
         "ui_control": "switch",
@@ -528,6 +528,14 @@ _FIELD_DEFINITIONS: Dict[str, Dict[str, Any]] = {
         ],
         "docs": [
             {
+                "label": "LiteLLM Providers（官方）",
+                "href": "https://docs.litellm.ai/docs/providers",
+            },
+            {
+                "label": "LiteLLM OpenAI-compatible（官方）",
+                "href": "https://docs.litellm.ai/docs/providers/openai_compatible",
+            },
+            {
                 "label": "AlphaSift 集成说明",
                 "href": "https://github.com/ZhuLinsen/daily_stock_analysis/blob/main/docs/alphasift-integration.md",
             },
@@ -535,7 +543,7 @@ _FIELD_DEFINITIONS: Dict[str, Dict[str, Any]] = {
     },
     "ALPHASIFT_INSTALL_SPEC": {
         "title": "AlphaSift Install Spec",
-        "description": "Pinned AlphaSift pip source used for explicit repair installs and source verification.",
+        "description": "Pinned AlphaSift pip source used for explicit repair installs and source verification. It is not used for normal runtime calls after startup dependency installation; runtime compatibility is built from DSA's resolved LLM/runtime context.",
         "category": "data_source",
         "data_type": "string",
         "ui_control": "password",

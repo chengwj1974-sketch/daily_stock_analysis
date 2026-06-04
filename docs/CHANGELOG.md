@@ -19,6 +19,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 - [文档] 增补 AlphaSift 与 DSA runtime bridge 的兼容边界说明：仅执行运行期桥接，不迁移 `.env` 中 provider/model/base_url 与历史配置。
 - [文档] 明确 AnalysisContextPack P6 文档、迁移与回滚边界，并同步既有 `SAVE_CONTEXT_SNAPSHOT` 到 `.env.example`、配置注册表、Web 设置帮助和完整指南。
 - [文档] 补齐 #1386 P7 盘前/盘中/盘后分析的入口、迁移、回滚和用户可见说明。
+- [文档] 恢复 Web 大盘复盘历史记录与显示链路的未合并文档说明，避免 Unreleased 记录丢失。
+- [修复] 恢复桌面自动更新、回退与状态可见性的历史兼容条目，保持与上一次发布前语义一致。
+- [文档] 恢复 Docker Web 设置页 runtime env fallback 与启动后端环境回退说明，避免历史变更记录被本次 PR 覆盖。
+- [文档] 恢复 #1386 P6 相关变更与回滚边界记录（市场阶段化与 API/配置兼容说明）。
 - [测试] 增补 AlphaSift runtime bridge 与打包脚本静态验证，覆盖 `LLM_CHANNELS`、`LITELLM_FALLBACK_MODELS`、`alphasift.dsa_adapter`、`--collect-all alphasift`。
 
 ## [3.20.0] - 2026-06-03

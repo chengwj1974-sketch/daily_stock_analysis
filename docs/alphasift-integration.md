@@ -120,7 +120,14 @@ AlphaSift 侧已在 `ZhuLinsen/alphasift@2fc87ee8cd3dcc92350d15f06a73db349cb7e24
   - 官方 `model_list`/额外头依据：LiteLLM config 文档（[https://docs.litellm.ai/docs/proxy/configs](https://docs.litellm.ai/docs/proxy/configs)）说明 `litellm_params` 支持 `model`、`api_base`、`api_key` 与 `extra_headers`。DSA 只把已声明渠道转换为同类结构传给 AlphaSift，不新增模型路由映射，不做 provider 模式迁移。
   - 兼容头部语义依据：OpenAI 调用约定（[https://platform.openai.com/docs/api-reference/making-requests](https://platform.openai.com/docs/api-reference/making-requests)）与鉴权约定（[https://platform.openai.com/docs/api-reference/authentication](https://platform.openai.com/docs/api-reference/authentication)）对应 `Authorization` 与自定义 header 传递行为，`extra_headers` 仅用于补充会话头，不改写模型路由。
   - 回退路径为“设置页关闭 AlphaSift 或保留 `ALPHASIFT_ENABLED=false`”，并保持原有 `LITELLM_*` 与 `LLM_*` 配置，触发失败时可先核对 `status`/`screen` 的 `diagnostics` 后执行服务重启。
-  - 失败可见性：`status`/`screen` 接口返回明确错误码与 `message`，前端在设置页或选股页会将 `403/424/400/422` 等错误直接提示给用户，便于定位并回退到“关闭 AlphaSift + 保持原有 LLM 运行链路”。
+- 失败可见性：`status`/`screen` 接口返回明确错误码与 `message`，前端在设置页或选股页会将 `403/424/400/422` 等错误直接提示给用户，便于定位并回退到“关闭 AlphaSift + 保持原有 LLM 运行链路”。
+
+## 兼容验收索引（发布前核验）
+
+- 依赖与源码约束核验：`requirements.txt` 中的 `litellm` 约束与 `src/config.py`/`requirements.txt` 一致。
+- 行为核验：`src/services/alphasift_service.py` 的 `_build_alphasift_runtime_env` 与 `_build_alphasift_context` 仅在调用期写入进程环境；`/api/v1/alphasift/screen`、`strategies`、`status` 在运行期不回写 `.env`。
+- 回退核验：关闭 `ALPHASIFT_ENABLED` 并重启配置链路后，系统恢复原始 `LITELLM_MODEL/FALLBACK_MODELS`、`LLM_CHANNELS` 与 `LLM_*` 运行语义，不执行迁移清理脚本。
+- 语义来源核验：LiteLLM 文档（https://docs.litellm.ai/docs/providers）、OpenAI-compatible 文档（https://docs.litellm.ai/docs/providers/openai_compatible）与 LiteLLM 配置文档（https://docs.litellm.ai/docs/proxy/configs）用于核对 provider/model/base_url/extra_headers 映射链路。
 - 状态诊断：`/api/v1/alphasift/status` 对 AlphaSift 包或 `alphasift.dsa_adapter` 未安装仍保持 `200` + `available=false` 的兼容语义；如果导入过程、`get_status()` 调用或返回结构出现非预期异常，后端会记录 warning，并在响应中追加不含安装来源明文的 `diagnostics` 字段，便于从接口状态和服务端日志定位问题。
 
 错误策略：
