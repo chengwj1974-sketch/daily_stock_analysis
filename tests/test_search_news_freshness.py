@@ -926,6 +926,54 @@ class SearchNewsFreshnessTestCase(unittest.TestCase):
             ],
         )
 
+    def test_search_comprehensive_intel_analytical_keeps_unknown_dates_and_crops_by_window(self) -> None:
+        """Analytical dimensions keep unknown-date results while clipping known results to 180 days."""
+        today = datetime.now().date()
+        very_old = (today - timedelta(days=220)).isoformat()
+        in_window = (today - timedelta(days=170)).isoformat()
+        fresh_dt = datetime.now(timezone.utc).replace(microsecond=0)
+        fresh_text = fresh_dt.strftime("%Y-%m-%dT%H:%M:%SZ")
+
+        service, mock_search = self._create_service_with_mock_provider(
+            news_max_age_days=3,
+            news_strategy_profile="short",
+        )
+        mock_search.side_effect = [
+            _response([_result("latest_news", fresh_text)]),
+            _response([
+                _result("market_analysis_too_old", very_old),
+                _result("market_analysis_unknown", None),
+                _result("market_analysis_in_window", in_window),
+            ]),
+            _response([_result("risk_check", fresh_text)]),
+            _response([_result("announcement_item", fresh_text)]),
+            _response([
+                _result("earnings_too_old", very_old),
+                _result("earnings_unknown", None),
+                _result("earnings_in_window", in_window),
+            ]),
+        ]
+
+        with patch("src.search_service.time.sleep"):
+            intel = service.search_comprehensive_intel(
+                stock_code="600519",
+                stock_name="贵州茅台",
+                max_searches=5,
+            )
+
+        self.assertEqual(
+            [item.title for item in intel["market_analysis"].results],
+            ["market_analysis_unknown", "market_analysis_in_window"],
+        )
+        self.assertIsNone(intel["market_analysis"].results[0].published_date)
+        self.assertEqual(intel["market_analysis"].results[1].published_date, in_window)
+        self.assertEqual(
+            [item.title for item in intel["earnings"].results],
+            ["earnings_unknown", "earnings_in_window"],
+        )
+        self.assertIsNone(intel["earnings"].results[0].published_date)
+        self.assertEqual(intel["earnings"].results[1].published_date, in_window)
+
     def test_search_comprehensive_intel_etf_risk_check_keeps_unknown_dates(self) -> None:
         """ETF risk_check should avoid strict freshness filtering."""
         fresh_dt = datetime.now(timezone.utc).replace(microsecond=0)

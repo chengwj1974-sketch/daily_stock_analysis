@@ -3024,6 +3024,7 @@ class SearchService:
         search_days: int,
         max_results: int,
         log_scope: str,
+        keep_unknown: bool = False,
     ) -> SearchResponse:
         """Hard-filter results by published_date recency and normalize date strings."""
         if not response.success or not response.results:
@@ -3041,6 +3042,22 @@ class SearchService:
         for item in response.results:
             published = self._normalize_news_publish_date(item.published_date)
             if published is None:
+                if keep_unknown:
+                    filtered.append(
+                        SearchResult(
+                            title=item.title,
+                            snippet=item.snippet,
+                            url=item.url,
+                            source=item.source,
+                            published_date=item.published_date,
+                            relevance_score=item.relevance_score,
+                            relevance_category=item.relevance_category,
+                            relevance_reasons=item.relevance_reasons,
+                        )
+                    )
+                    if len(filtered) >= max_results:
+                        break
+                    continue
                 dropped_unknown += 1
                 continue
             if published < earliest:
@@ -3612,6 +3629,14 @@ class SearchService:
                     response,
                     search_days=search_days,
                     max_results=provider_max_results,
+                    log_scope=f"{stock_code}:{provider.name}:{dim['name']}",
+                )
+            elif dim['name'] in self.ANALYTICAL_INTEL_DIMENSIONS:
+                filtered_response = self._filter_news_response(
+                    response,
+                    search_days=self.ANALYTICAL_INTEL_LOOKBACK_DAYS,
+                    max_results=provider_max_results,
+                    keep_unknown=True,
                     log_scope=f"{stock_code}:{provider.name}:{dim['name']}",
                 )
             else:
