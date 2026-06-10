@@ -242,6 +242,84 @@ describe('StockScreeningPage', () => {
     expect(getHotspotDetail).toHaveBeenCalledTimes(2);
   });
 
+  it('clears loaded hotspot detail while loading a different theme', async () => {
+    getAlphaSiftStatus.mockResolvedValueOnce({
+      enabled: true,
+      available: true,
+      installSpecIsDefault: true,
+    });
+    getHotspots.mockResolvedValueOnce({
+      enabled: true,
+      provider: 'akshare',
+      providerUsed: 'akshare',
+      hotspots: [
+        {
+          topic: 'AI算力',
+          name: 'AI算力',
+          heatScore: 88,
+          stage: '加速主升',
+        },
+        {
+          topic: '机器人执行器',
+          name: '机器人执行器',
+          heatScore: 80,
+          stage: '轮动扩散',
+        },
+      ],
+      hotspotCount: 2,
+    });
+
+    const robotDetail = createDeferred<unknown>();
+    getHotspotDetail
+      .mockResolvedValueOnce({
+        enabled: true,
+        provider: 'akshare',
+        topic: 'AI算力',
+        name: 'AI算力',
+        summary: 'AI算力 盘中发酵。',
+        route: [{ title: '盘中发酵', description: '出现大笔买入。', source: 'eastmoney_board_change' }],
+        stocks: [{ code: '300000', name: '中际旭创', role: '核心龙头', hotStockScore: 88 }],
+        stockCount: 1,
+      })
+      .mockImplementationOnce(({ topic }: { topic: string }) => {
+        if (topic === '机器人执行器') {
+          return robotDetail.promise;
+        }
+        return Promise.reject(new Error(`unexpected topic: ${topic}`));
+      });
+
+    render(<StockScreeningPage />);
+
+    expect(await screen.findByText('盘中发酵')).toBeInTheDocument();
+    expect(screen.getByText('中际旭创')).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: /机器人执行器/ }));
+
+    await waitFor(() =>
+      expect(getHotspotDetail).toHaveBeenLastCalledWith({ topic: '机器人执行器', provider: 'akshare' }),
+    );
+    expect(screen.getAllByText('机器人执行器').length).toBeGreaterThan(0);
+    expect(screen.getByText('正在读取发酵路线与概念股...')).toBeInTheDocument();
+    expect(screen.queryByText('盘中发酵')).not.toBeInTheDocument();
+    expect(screen.queryByText('中际旭创')).not.toBeInTheDocument();
+
+    await act(async () => {
+      robotDetail.resolve({
+        enabled: true,
+        provider: 'akshare',
+        topic: '机器人执行器',
+        name: '机器人执行器',
+        summary: '机器人执行器 继续发酵。',
+        route: [{ title: '机器人发酵', description: '执行器链条扩散。', source: 'eastmoney_board_change' }],
+        stocks: [{ code: '300111', name: '机器人龙头', role: '核心龙头', hotStockScore: 86 }],
+        stockCount: 1,
+      });
+    });
+
+    expect(await screen.findByText('机器人发酵')).toBeInTheDocument();
+    expect(screen.getByText('机器人龙头')).toBeInTheDocument();
+  });
+
   it('ignores stale hotspot detail responses when switching themes', async () => {
     getAlphaSiftStatus.mockResolvedValueOnce({
       enabled: true,
@@ -400,6 +478,49 @@ describe('StockScreeningPage', () => {
     expect(getHotspotDetail).toHaveBeenLastCalledWith({ topic: 'AI算力', provider: 'akshare' });
     expect(await screen.findByText('刷新发酵')).toBeInTheDocument();
     expect(screen.getByText('工业富联')).toBeInTheDocument();
+  });
+
+  it('keeps existing hotspot cards when manual refresh fails', async () => {
+    getAlphaSiftStatus.mockResolvedValueOnce({
+      enabled: true,
+      available: true,
+      installSpecIsDefault: true,
+    });
+    getHotspots
+      .mockResolvedValueOnce({
+        enabled: true,
+        provider: 'akshare',
+        providerUsed: 'akshare',
+        hotspots: [
+          {
+            topic: 'AI算力',
+            name: 'AI算力',
+            heatScore: 88,
+            trendScore: 12,
+            persistenceScore: 66,
+            changePct: 4.2,
+            stage: '加速主升',
+            sampleStockCount: 8,
+            leaders: ['中际旭创', '工业富联'],
+          },
+        ],
+        hotspotCount: 1,
+      })
+      .mockRejectedValueOnce(new Error('manual refresh failed'));
+
+    render(<StockScreeningPage />);
+
+    expect(await screen.findByText('选股已开启')).toBeInTheDocument();
+    expect(await screen.findByText('加速主升')).toBeInTheDocument();
+    expect(screen.getByText(/中际旭创、工业富联/)).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: /刷新热点题材/ }));
+
+    await waitFor(() => expect(getHotspots).toHaveBeenCalledWith({ provider: 'akshare', top: 12, refresh: true }));
+    expect(await screen.findByText(/manual refresh failed/)).toBeInTheDocument();
+    expect(screen.getByText('加速主升')).toBeInTheDocument();
+    expect(screen.getByText(/中际旭创、工业富联/)).toBeInTheDocument();
+    expect(screen.queryByText(/点击刷新后会拉取热点概念/)).not.toBeInTheDocument();
   });
 
   it('shows input strategy when strategy is not in preset list', async () => {

@@ -331,6 +331,7 @@ const StockScreeningPage: React.FC = () => {
     const isCurrentRequest = () => hotspotDetailRequestIdRef.current === requestId;
     const canApplyRequest = () => isCurrentRequest() && selectedHotspotTopicRef.current === topic;
     setLoadingHotspotDetail(true);
+    setHotspotDetail((currentDetail) => (currentDetail?.topic === topic ? currentDetail : null));
     setHotspotDetailError('');
     try {
       const detail = await alphasiftApi.getHotspotDetail({ topic, provider: 'akshare' });
@@ -394,7 +395,6 @@ const StockScreeningPage: React.FC = () => {
         setHotspotError(sourceError ? `热点题材暂未返回数据：${sourceError}` : '热点题材暂未返回数据');
       }
     } catch (err) {
-      setHotspots([]);
       setHotspotError(toApiErrorMessage(err, '热点题材加载失败，请稍后重试。'));
     } finally {
       setLoadingHotspots(false);
