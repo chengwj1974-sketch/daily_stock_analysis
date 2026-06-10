@@ -1099,7 +1099,10 @@ class DsaEastMoneyHotspotProvider:
                 exc,
             )
             summary = {}
-        stocks = self._normalize_constituent_records(self.stock_board_concept_cons_em(topic))
+        if self._is_industry_hotspot(topic):
+            stocks = self._normalize_constituent_records(self.stock_board_industry_cons_em(topic))
+        else:
+            stocks = self._normalize_constituent_records(self.stock_board_concept_cons_em(topic))
         route = self._build_hotspot_route(topic, summary)
         info = self._fetch_ths_info(topic)
         if info:
@@ -1216,6 +1219,35 @@ class DsaEastMoneyHotspotProvider:
         if rows.empty:
             return {}
         return rows.iloc[0].to_dict()
+
+    def _is_industry_hotspot(self, topic: str) -> bool:
+        try:
+            frame = self.stock_board_industry_name_em()
+        except Exception as exc:
+            logger.warning(
+                "AlphaSift industry hotspot source check failed for %s; using concept constituents: %s",
+                topic,
+                exc,
+            )
+            return False
+        return self._board_frame_contains_topic(frame, topic)
+
+    def _board_frame_contains_topic(self, frame: Any, topic: str) -> bool:
+        import pandas as pd
+
+        topic_text = _env_text(topic)
+        if not topic_text:
+            return False
+        df = pd.DataFrame(frame)
+        if df.empty:
+            return False
+        for column in ("name", "板块名称", "行业名称", "名称"):
+            if column not in df.columns:
+                continue
+            values = df[column].map(_env_text)
+            if bool((values == topic_text).any()):
+                return True
+        return False
 
     def _build_hotspot_summary(self, topic: str, summary: Dict[str, Any]) -> str:
         if not summary:

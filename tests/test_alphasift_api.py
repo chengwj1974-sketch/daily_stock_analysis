@@ -516,6 +516,52 @@ class AlphaSiftOpportunitiesApiTestCase(unittest.TestCase):
         self.assertEqual(payload["route"][0]["source"], "ths_summary")
         self.assertEqual(payload["stocks"][0]["name"], "顺络电子")
 
+    def test_hotspot_detail_uses_industry_constituents_for_industry_hotspots(self) -> None:
+        import pandas as pd
+
+        config = self._config(enabled=True)
+
+        class FakeProvider(alphasift_service.DsaEastMoneyHotspotProvider):
+            def __init__(self) -> None:
+                self.constituent_sources = []
+
+            def stock_board_industry_name_em(self) -> Any:
+                return pd.DataFrame([{"name": "电池", "rank": 1}])
+
+            def _fetch_eastmoney_constituents(self, topic: str, *, source: str) -> Any:
+                self.constituent_sources.append(source)
+                if source == "industry":
+                    return pd.DataFrame([{
+                        "代码": "300750",
+                        "名称": "宁德时代",
+                        "涨跌幅": 2.6,
+                    }])
+                return pd.DataFrame()
+
+            def _fetch_ths_constituents(self, topic: str) -> Any:
+                raise AssertionError("industry hotspots must not use concept constituents")
+
+            def _find_board_change(self, topic: str) -> Dict[str, Any]:
+                return {}
+
+            def _fetch_ths_summary_event(self, topic: str) -> str:
+                return ""
+
+            def _fetch_ths_info(self, topic: str) -> Dict[str, str]:
+                return {}
+
+        provider = FakeProvider()
+        with (
+            patch("src.services.alphasift_service._get_alphasift_status_snapshot", return_value=({}, True, {})),
+            patch("src.services.alphasift_service._resolve_hotspot_provider", return_value=("akshare", provider)),
+        ):
+            payload = self._hotspot_detail(config=config, provider="akshare", topic="电池")
+
+        self.assertEqual(payload["enabled"], True)
+        self.assertEqual(payload["topic"], "电池")
+        self.assertEqual(payload["stocks"][0]["name"], "宁德时代")
+        self.assertEqual(provider.constituent_sources, ["industry"])
+
     def test_fetch_ths_summary_event_ignores_missing_concept_name_column(self) -> None:
         import pandas as pd
 
